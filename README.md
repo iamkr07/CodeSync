@@ -1,5 +1,7 @@
 # 🚀 CodeSync  
 ### Real-Time Collaborative IDE with AI Assistance & Distributed Session Architecture
+## 🔗 Live Demo  
+👉 https://code-sync-sooty.vercel.app/
 
 > A real-time collaborative coding platform enabling multiple users to code together, execute programs, and leverage AI-powered code intelligence in shared environments.
 
