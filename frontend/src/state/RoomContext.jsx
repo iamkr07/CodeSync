@@ -8,7 +8,8 @@ import {
   setDoc, 
   doc,
   query,
-  orderBy
+  orderBy,
+  onSnapshot
 } from "firebase/firestore"; 
 import { db } from "../firebase";
 
@@ -40,6 +41,58 @@ export const RoomProvider = ({ children }) => {
   const codeSaveTimeoutRef = useRef(null);
 
   /**
+   * Effect to handle real-time session events and snapshots from Firestore
+   */
+  useEffect(() => {
+    if (!roomId) return;
+
+    console.log("Setting up real-time listeners for room:", roomId);
+
+    // 1. Real-time Session Events Listener
+    const eventsQuery = query(
+      collection(db, "rooms", roomId, "events"),
+      orderBy("timestamp", "asc")
+    );
+    
+    const unsubscribeEvents = onSnapshot(eventsQuery, (snapshot) => {
+      const eventsData = snapshot.docs.map(doc => doc.data());
+      console.log("Real-time events sync:", eventsData.length);
+      setEvents(eventsData);
+    }, (error) => {
+      console.error("Firestore events listener error:", error);
+    });
+
+    // 2. Real-time Snapshots Listener
+    const snapshotsQuery = query(
+      collection(db, "rooms", roomId, "snapshots"),
+      orderBy("savedAt", "desc")
+    );
+    
+    const unsubscribeSnapshots = onSnapshot(snapshotsQuery, (snapshot) => {
+      const snapshotsData = snapshot.docs.map(doc => doc.data());
+      setSnapshots(snapshotsData);
+    });
+
+    // 3. Real-time Messages Listener
+    const messagesQuery = query(
+      collection(db, "rooms", roomId, "messages"),
+      orderBy("timestamp", "asc")
+    );
+    
+    const unsubscribeMessages = onSnapshot(messagesQuery, (snapshot) => {
+      const messagesData = snapshot.docs.map(doc => doc.data());
+      setMessages(messagesData);
+    });
+
+    return () => {
+      console.log("Unsubscribing from real-time listeners for room:", roomId);
+      unsubscribeEvents();
+      unsubscribeSnapshots();
+      unsubscribeMessages();
+    };
+  }, [roomId]);
+
+  /**
    * Join a room with user info
    */
   const joinRoom = useCallback(
@@ -56,33 +109,6 @@ export const RoomProvider = ({ children }) => {
           if (data.code) setCode(data.code);
           if (data.language) setLanguage(data.language);
         }
-
-        // Load chat history
-        const messagesQuery = query(
-          collection(db, "rooms", newRoomId, "messages"),
-          orderBy("timestamp", "asc")
-        );
-        const messagesSnap = await getDocs(messagesQuery);
-        const history = messagesSnap.docs.map(doc => doc.data());
-        setMessages(history);
-
-        // Load snapshots
-        const snapshotsQuery = query(
-          collection(db, "rooms", newRoomId, "snapshots"),
-          orderBy("savedAt", "desc")
-        );
-        const snapshotsSnap = await getDocs(snapshotsQuery);
-        const snapshotsData = snapshotsSnap.docs.map(doc => doc.data());
-        setSnapshots(snapshotsData);
-
-        // Load session events
-        const eventsQuery = query(
-          collection(db, "rooms", newRoomId, "events"),
-          orderBy("timestamp", "asc")
-        );
-        const eventsSnap = await getDocs(eventsQuery);
-        const eventsData = eventsSnap.docs.map(doc => doc.data());
-        setEvents(eventsData);
       } catch (err) {
         console.error("Firestore error loading room data:", err);
       }
